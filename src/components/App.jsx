@@ -1,58 +1,63 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useSelector, shallowEqual, useDispatch } from 'react-redux';
 import ContactForm from './ContactForm';
 import ContactList from './ContactList';
 import Filter from './Filter';
-import { getContacts } from 'redux/contacts/contactsSelector';
-
-import actions from '../redux/contacts/contactsActions';
+import {
+  getContacts,
+  getError,
+  getLoading,
+} from 'redux/contacts/contactsSelector';
+import * as operations from 'redux/contacts/contacts-operations';
 
 const App = () => {
   const contacts = useSelector(getContacts, shallowEqual);
+  const loading = useSelector(getLoading, shallowEqual);
+  const error = useSelector(getError, shallowEqual);
+
   const dispatch = useDispatch();
 
   const [filter, setFilter] = useState('');
 
   useEffect(() => {
-    localStorage.setItem('contacts', JSON.stringify(contacts));
-  }, [contacts]);
+    dispatch(operations.contactsFetch());
+  }, [dispatch]);
 
-  const addContact = data => {
-    const { name } = data;
-    const dublicate = contacts.find(contact => contact.name === name);
-    if (dublicate) {
-      alert(`${name} is already in contacts`);
-      return;
-    }
-    const action = actions.addContact(data);
-    dispatch(action);
+  const addContacts = data => {
+    dispatch(operations.addContact(data));
   };
 
   const deleteContact = id => {
-    const action = actions.deleteContact(id);
-    dispatch(action);
+    dispatch(operations.deleteContact(id));
   };
 
-  const changeFilter = ({ target }) => setFilter(target.value);
+  const changeFilter = useCallback(({ target }) => setFilter(target.value), []);
 
-  const getFilteredContacts = () => {
+  const getFilteredContacts = useCallback(() => {
     const filterText = filter.toLowerCase();
     const result = contacts.filter(item => {
       const name = item.name.toLowerCase().includes(filterText);
       return name;
     });
     return result;
-  };
+  }, [contacts, filter]);
 
   const filteredContacts = getFilteredContacts();
 
   return (
     <div>
       <h1>Phonebook</h1>
-      <ContactForm onSubmit={addContact} />
+      <ContactForm onSubmit={addContacts} />
       <h2>Contacts</h2>
       <Filter filter={filter} changeFilter={changeFilter} />
-      <ContactList contacts={filteredContacts} deleteContact={deleteContact} />
+      {loading && <p>Loading...</p>}
+      {error && <p>{error.message}</p>}
+      {Boolean(contacts.length) && (
+        <ContactList
+          contacts={filteredContacts}
+          deleteContact={deleteContact}
+        />
+      )}
     </div>
   );
 };
